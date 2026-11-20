@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OS Scheduling Visualizer</title>
+<style>
+:root{--bg:#f6f7f4;--fg:#1d2a24;--card:#fff;--line:#d5dbd4;--acc:#1f7a5a;--acc2:#c2410c;--mut:#5c6b63}
+@media(prefers-color-scheme:dark){:root{--bg:#14201b;--fg:#e8efe9;--card:#1c2b24;--line:#32463c;--acc:#4cc79a;--acc2:#f59e5b;--mut:#9fb2a7}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:16px 20px;border-bottom:1px solid var(--line)}h1{margin:0;font-size:20px}header p{margin:2px 0 0;color:var(--mut)}
+nav{display:flex;gap:4px;padding:10px 20px 0}nav button{border:1px solid var(--line);border-bottom:0;background:transparent;color:var(--fg);padding:8px 16px;border-radius:6px 6px 0 0;cursor:pointer}
+nav button.on{background:var(--card);font-weight:600;color:var(--acc)}
+main{background:var(--card);border-top:1px solid var(--line);padding:18px 20px;min-height:70vh}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:12px}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:3px}
+input,select,textarea,button.b{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+textarea{width:100%;min-height:70px;font-family:monospace}
+button.b{cursor:pointer;background:var(--acc);color:#fff;border-color:var(--acc)}button.b.s{background:transparent;color:var(--fg);border-color:var(--line)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--acc2);outline-offset:1px}
+.err{color:var(--acc2);font-weight:600;min-height:22px}
+svg{width:100%;height:auto;background:var(--bg);border:1px solid var(--line);border-radius:6px}
+svg text{fill:var(--fg);font:11px system-ui}
+table{border-collapse:collapse;width:100%;margin-top:10px}th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+.info{margin:8px 0;color:var(--mut)}.seq{font-family:monospace;word-break:break-all}
+.hide{display:none}
+</style></head><body>
+<header><h1>OS Scheduling Visualizer</h1><p>Step through disk and CPU scheduling. Runs offline in any browser.</p></header>
+<nav><button id="t1" class="on">Disk scheduling</button><button id="t2">CPU scheduling</button></nav>
+<main>
+<section id="p1">
+<div class="row">
+<label>Algorithm<select id="alg"><option>FCFS</option><option>SSTF</option><option>SCAN</option><option>C-SCAN</option><option>LOOK</option></select></label>
+<label>Cylinders (disk size)<input id="size" type="number" value="200" min="2"></label>
+<label>Head start<input id="head" type="number" value="53"></label>
+<label>Direction<select id="dir"><option value="1">Towards higher</option><option value="-1">Towards lower</option></select></label></div>
+<label>Request queue (comma separated)<textarea id="req">98,183,37,122,14,124,65,67</textarea></label>
+<div class="row" style="margin-top:10px">
+<button class="b" id="dRun">Run</button><button class="b s" id="dPrev">Previous</button><button class="b s" id="dNext">Next</button>
+<button class="b s" id="dPlay">Auto-play</button><button class="b s" id="dCmp">Compare all</button></div>
+<div class="err" id="dErr"></div>
+<div id="dOut"></div><div id="dCmpOut"></div>
+</section>
+<section id="p2" class="hide">
+<div class="row">
+<label>Algorithm<select id="calg"><option value="SJF">SJF (non-preemptive)</option><option value="RR">Round Robin</option><option value="SRTF">SRTF</option><option value="PRI">Priority (lower = higher)</option><option value="FCFS">FCFS</option></select></label>
+<label>Time quantum (RR)<input id="q" type="number" value="2" min="1"></label></div>
+<label>Processes, one per line: ID, arrival, burst, priority</label>
+<textarea id="procs" style="min-height:110px">P1,0,5,2
+P2,1,3,1
+P3,2,8,4
+P4,3,6,3</textarea>
+<div class="row" style="margin-top:10px">
+<button class="b" id="cRun">Run</button><button class="b s" id="cPrev">Previous</button><button class="b s" id="cNext">Next</button><button class="b s" id="cPlay">Auto-play</button></div>
+<div class="err" id="cErr"></div><div id="cOut"></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
+$('t1').onclick=()=>tab(1);$('t2').onclick=()=>tab(2);
+function tab(n){$('p1').classList.toggle('hide',n!=1);$('p2').classList.toggle('hide',n!=2);$('t1').classList.toggle('on',n==1);$('t2').classList.toggle('on',n==2)}
+/* ---------- DISK ---------- */
+function diskOrder(a,h,q,N,d){
+ q=q.slice();const max=N-1;let o=[];
+ if(a=='FCFS')return q;
+ if(a=='SSTF'){let c=h;while(q.length){let i=0;q.forEach((x,j)=>{if(Math.abs(x-c)<Math.abs(q[i]-c))i=j});c=q.splice(i,1)[0];o.push(c)}return o}
+ const lo=q.filter(x=>x<h).sort((x,y)=>x-y),hi=q.filter(x=>x>=h).sort((x,y)=>x-y);
+ const up=[...hi],dn=[...lo].reverse();
+ if(a=='LOOK')return d>0?[...up,...dn]:[...dn,...up];
+ if(a=='SCAN')return d>0?[...up,...(dn.length?[max]:[]),...dn]:[...dn,...(up.length?[0]:[]),...up];
+ if(a=='C-SCAN')return d>0?[...up,max,0,...lo]:[...dn,0,max,...[...hi].reverse()];
+}
+function dMoves(a,h,q,N,d){const o=diskOrder(a,h,q,N,d);let t=0,c=h;const p=[h];o.forEach(x=>{
+ if(a=='C-SCAN'&&((d>0&&c==N-1&&x==0)||(d<0&&c==0&&x==N-1))){p.push(x);c=x;return} // jump not counted
+ t+=Math.abs(x-c);c=x;p.push(x)});
+ // C-SCAN: show jump but count it (conventional) unless flagged
+ return{o,p,t}}
+function diskTotal(a,h,q,N,d){const r=dMoves(a,h,q,N,d);let t=0;for(let i=1;i<r.p.length;i++)t+=Math.abs(r.p[i]-r.p[i-1]);return{...r,t}}
+function readDisk(){
+ const N=+$('size').value,h=+$('head').value,d=+$('dir').value,raw=$('req').value.trim();
+ if(!Number.isInteger(N)||N<2)return err('dErr','Disk size must be a whole number of at least 2.');
+ if(!Number.isInteger(h)||h<0||h>=N)return err('dErr',`Head position must be between 0 and ${N-1}.`);
+ if(!raw)return err('dErr','Enter at least one request.');
+ const q=raw.split(/[\s,]+/).map(Number);
+ if(q.some(x=>!Number.isInteger(x)))return err('dErr','Requests must be whole numbers separated by commas.');
+ const bad=q.find(x=>x<0||x>=N);if(bad!==undefined)return err('dErr',`Request ${bad} is outside the disk (0 to ${N-1}).`);
+ if(q.length>60)return err('dErr','Use at most 60 requests.');
+ err('dErr','');return{N,h,d,q}}
+function err(id,m){$(id).textContent=m;return null}
+let D=null,dStep=0,dTimer=null;
+$('dRun').onclick=()=>{const i=readDisk();if(!i)return;stop();D={...i,...diskTotal($('alg').value,i.h,i.q,i.N,i.d),a:$('alg').value};dStep=0;drawDisk()};
+$('dNext').onclick=()=>{if(D&&dStep<D.p.length-1){dStep++;drawDisk()}};
+$('dPrev').onclick=()=>{if(D&&dStep>0){dStep--;drawDisk()}};
+$('dPlay').onclick=()=>{if(!D)return;if(dTimer)return stop();if(dStep>=D.p.length-1)dStep=0;$('dPlay').textContent='Pause';
+ dTimer=setInterval(()=>{if(dStep<D.p.length-1){dStep++;drawDisk()}else stop()},800)};
+function stop(){clearInterval(dTimer);dTimer=null;$('dPlay').textContent='Auto-play'}
+function drawDisk(){
+ const W=700,H=Math.max(260,40+D.p.length*28),m=40,sx=v=>m+v/(D.N-1)*(W-2*m),sy=i=>30+i*((H-50)/Math.max(1,D.p.length-1));
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Seek graph"><text x="${m}" y="14">Cylinder 0</text><text x="${W-m-70}" y="14">Cylinder ${D.N-1}</text>`;
+ for(let i=0;i<=dStep;i++){const x=sx(D.p[i]),y=sy(i);
+  if(i>0)s+=`<line x1="${sx(D.p[i-1])}" y1="${sy(i-1)}" x2="${x}" y2="${y}" stroke="var(--acc)" stroke-width="2"/>`;
+  s+=`<circle cx="${x}" cy="${y}" r="${i==dStep?7:4}" fill="${i==dStep?'var(--acc2)':'var(--acc)'}"/><text x="${x+8}" y="${y-6}">${D.p[i]}</text>`;
+  s+=`<text x="2" y="${y+4}">${i==0?'start':'#'+i}</text>`}
+ s+='</svg>';
+ const done=D.p.slice(1,dStep+1);let t=0;for(let i=1;i<=dStep;i++)t+=Math.abs(D.p[i]-D.p[i-1]);
+ $('dOut').innerHTML=`<p class="info"><b>${D.a}</b> · step ${dStep}/${D.p.length-1} · head at ${D.p[dStep]} · movement so far ${t}</p>${s}
+ <p class="seq"><b>Service sequence:</b> ${D.p[0]} → ${done.join(' → ')||'…'}</p>
+ <p><b>Total head movement:</b> ${D.t} cylinders (final, all steps)${(D.a=='SCAN'||D.a=='C-SCAN')?' — includes travel to the disk end'+(D.a=='C-SCAN'?' and the return jump':''):''}</p>`}
+$('dCmp').onclick=()=>{const i=readDisk();if(!i)return;
+ const r=['FCFS','SSTF','SCAN','C-SCAN','LOOK'].map(a=>[a,diskTotal(a,i.h,i.q,i.N,i.d).t]),mx=Math.max(...r.map(x=>x[1])),mn=Math.min(...r.map(x=>x[1]));
+ let s=`<svg viewBox="0 0 700 260" role="img" aria-label="Total head movement by algorithm">`;
+ r.forEach((x,k)=>{const bh=x[1]/mx*180,bx=60+k*125;
+  s+=`<rect x="${bx}" y="${220-bh}" width="80" height="${bh}" fill="${x[1]==mn?'var(--acc)':'var(--mut)'}"/><text x="${bx+40}" y="${214-bh}" text-anchor="middle">${x[1]}</text><text x="${bx+40}" y="238" text-anchor="middle">${x[0]}</text>`});
+ $('dCmpOut').innerHTML=`<h3>Total head movement (same input)</h3>${s}</svg><p class="info">Lowest: ${r.find(x=>x[1]==mn)[0]} (${mn}). Highlighted bar = best.</p>`};
+/* ---------- CPU ---------- */
+function readProcs(){
+ const L=$('procs').value.trim().split('\n').filter(x=>x.trim());if(!L.length)return err('cErr','Add at least one process.');
+ const P=[],ids=new Set();
+ for(const l of L){const f=l.split(',').map(x=>x.trim());
+  if(f.length<3)return err('cErr',`"${l}": use ID, arrival, burst, priority.`);
+  const [id,a,b,pr]=[f[0],+f[1],+f[2],f[3]===undefined?0:+f[3]];
+  if(!id||ids.has(id))return err('cErr',`Process ID "${id}" is empty or repeated.`);ids.add(id);
+  if(![a,b,pr].every(Number.isInteger)||a<0||b<1||pr<0)return err('cErr',`"${l}": arrival ≥ 0, burst ≥ 1, priority ≥ 0, all whole numbers.`);
+  P.push({id,a,b,pr})}
+ if($('calg').value=='RR'&&!(+$('q').value>=1&&Number.isInteger(+$('q').value)))return err('cErr','Time quantum must be a whole number ≥ 1.');
+ err('cErr','');return P}
+function cpu(alg,P,q){
+ const rem={};P.forEach(p=>rem[p.id]=p.b);let t=0,g=[],done=0,queue=[],seen=new Set();
+ const push=(id,s,e)=>{const l=g[g.length-1];if(l&&l.id==id&&l.e==s)l.e=e;else g.push({id,s,e})};
+ const key=p=>alg=='SJF'?p.b:alg=='SRTF'?rem[p.id]:alg=='PRI'?p.pr:p.a;
+ if(alg!='RR'){let cur=null;
+  while(done<P.length){const rd=P.filter(p=>p.a<=t&&rem[p.id]>0);
+   if(!rd.length){push('idle',t,t+1);t++;continue}
+   const pick=()=>rd.reduce((x,y)=>key(y)<key(x)||(key(y)==key(x)&&y.a<x.a)?y:x);
+   const pre=alg=='SRTF';
+   if(pre){const p=pick();push(p.id,t,t+1);rem[p.id]--;t++;if(!rem[p.id])done++}
+   else{const p=pick();push(p.id,t,t+p.b);t+=p.b;rem[p.id]=0;done++}}
+ }else{const ps=[...P].sort((x,y)=>x.a-y.a);let i=0;
+  const adm=()=>{while(i<ps.length&&ps[i].a<=t)queue.push(ps[i++])};
+  while(done<P.length){adm();if(!queue.length){push('idle',t,ps[i].a);t=ps[i].a;continue}
+   const p=queue.shift(),r=Math.min(q,rem[p.id]);g.push({id:p.id,s:t,e:t+r});t+=r;rem[p.id]-=r;adm();
+   if(rem[p.id])queue.push(p);else done++}}
+ const res=P.map(p=>{const ct=Math.max(...g.filter(x=>x.id==p.id).map(x=>x.e));return{...p,ct,tat:ct-p.a,wt:ct-p.a-p.b}});
+ return{g,res}}
+let C=null,cStep=0,cTimer=null;
+$('cRun').onclick=()=>{const P=readProcs();if(!P)return;cstop();C=cpu($('calg').value,P,+$('q').value);C.name=$('calg').selectedOptions[0].text;cStep=0;drawCpu()};
+$('cNext').onclick=()=>{if(C&&cStep<C.g.length){cStep++;drawCpu()}};
+$('cPrev').onclick=()=>{if(C&&cStep>0){cStep--;drawCpu()}};
+$('cPlay').onclick=()=>{if(!C)return;if(cTimer)return cstop();if(cStep>=C.g.length)cStep=0;$('cPlay').textContent='Pause';
+ cTimer=setInterval(()=>{if(cStep<C.g.length){cStep++;drawCpu()}else cstop()},700)};
+function cstop(){clearInterval(cTimer);cTimer=null;$('cPlay').textContent='Auto-play'}
+function drawCpu(){
+ const T=C.g[C.g.length-1].e,W=700,m=20,sx=v=>m+v/T*(W-2*m),col=['#1f7a5a','#c2410c','#2563eb','#a16207','#7c3aed','#be185d','#0e7490','#4d7c0f'];
+ const ids=[...new Set(C.res.map(r=>r.id))];
+ let s=`<svg viewBox="0 0 ${W} 100" role="img" aria-label="Gantt chart">`;
+ C.g.slice(0,cStep).forEach(b=>{const c=b.id=='idle'?'#8a948e':col[ids.indexOf(b.id)%8];
+  s+=`<rect x="${sx(b.s)}" y="20" width="${sx(b.e)-sx(b.s)}" height="40" fill="${c}" stroke="var(--bg)"/><text x="${(sx(b.s)+sx(b.e))/2}" y="45" text-anchor="middle" style="fill:#fff;font-weight:600">${b.id}</text><text x="${sx(b.s)}" y="76">${b.s}</text>`});
+ if(cStep)s+=`<text x="${sx(C.g[cStep-1].e)}" y="76">${C.g[cStep-1].e}</text>`;
+ s+='</svg>';
+ const n=C.res.length,av=k=>(C.res.reduce((a,r)=>a+r[k],0)/n).toFixed(2);
+ const fin=cStep==C.g.length;
+ $('cOut').innerHTML=`<p class="info"><b>${C.name}</b> · block ${cStep}/${C.g.length}</p>${s}
+ <table><tr><th>Process</th><th>Arrival</th><th>Burst</th><th>Priority</th><th>Completion</th><th>Turnaround</th><th>Waiting</th></tr>
+ ${C.res.map(r=>`<tr><td>${r.id}</td><td>${r.a}</td><td>${r.b}</td><td>${r.pr}</td><td>${fin?r.ct:'…'}</td><td>${fin?r.tat:'…'}</td><td>${fin?r.wt:'…'}</td></tr>`).join('')}
+ <tr><th colspan="5">Average</th><th>${fin?av('tat'):'…'}</th><th>${fin?av('wt'):'…'}</th></tr></table>
+ <p class="info">Turnaround = completion − arrival. Waiting = turnaround − burst. Tables fill in when the chart finishes.</p>`}
+</script></body></html>
