@@ -36,6 +36,16 @@ https://drive.google.com/file/d/1uTUj1HXZ6_rXlmR0Guuy0VviCgE2zEUN/view?usp=drive
 
 **Author:** Amrutha Babu
 
+## Technologies Used
+- **HTML5**: page structure, input forms and tabs
+- **CSS3**: layout, styling, responsive design and dark mode
+- **JavaScript (vanilla)**: all scheduling algorithms, validation and step-by-step animation
+- **SVG**: seek graphs, bar charts and Gantt charts drawn in the browser
+- **GitHub**: source code hosting and version control
+- **GitHub Pages** (optional): free live hosting of the tool
+
+No frameworks, libraries, server or internet connection are needed. The tool runs offline in any modern browser (Chrome, Edge, Firefox, Safari).
+
 ## Objectives
 - Build an interactive tool that shows how an operating system schedules disk requests and CPU processes.
 - Animate FCFS, SSTF, SCAN, C-SCAN and LOOK disk scheduling with a seek graph, service sequence and total head movement.
