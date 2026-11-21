@@ -2,7 +2,7 @@
 Interactive, offline web tool that animates disk scheduling (FCFS, SSTF, SCAN, C-SCAN, LOOK) and CPU scheduling (SJF, RR, SRTF, Priority) with seek graphs, Gantt charts and step-by-step mode. 
 
 ## Sample inputs
-**Disk scheduling 
+Disk scheduling 
 - Disk size: 200 cylinders (0-199)
 - Head start: 50
 - Queue: 82,170,43,140,24,16,190
