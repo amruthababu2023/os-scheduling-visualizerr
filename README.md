@@ -17,3 +17,14 @@ P1,0,5,2
 P2,1,3,1
 P3,2,8,4
 P4,3,6,3
+
+## Screenshots
+
+### SSTF seek graph
+![SSTF seek graph](sstf-run.png)
+
+### Comparison of all algorithms
+![Comparison bar chart](compare-all.png)
+
+
+
