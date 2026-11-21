@@ -25,6 +25,11 @@ P4,3,6,3
 
 ### Comparison of all algorithms
 ![Comparison bar chart](compare-all.png)
+### CPU scheduling: SJF
+![SJF Gantt chart](cpu-sjf.png)
+
+### CPU scheduling: Round Robin
+![Round Robin Gantt chart](cpu-rr.png)
 
 ##Demo Video
 https://drive.google.com/file/d/1jEUWW7uNhzzCI1sysHNHInE9puGjHEXu/view?usp=sharing
