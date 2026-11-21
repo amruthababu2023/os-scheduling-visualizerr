@@ -36,5 +36,17 @@ https://drive.google.com/file/d/1uTUj1HXZ6_rXlmR0Guuy0VviCgE2zEUN/view?usp=drive
 
 **Author:** Amrutha Babu
 
+## Objectives
+- Build an interactive tool that shows how an operating system schedules disk requests and CPU processes.
+- Animate FCFS, SSTF, SCAN, C-SCAN and LOOK disk scheduling with a seek graph, service sequence and total head movement.
+- Compare all disk algorithms on the same input with a bar chart.
+- Animate CPU scheduling (SJF and Round Robin) with a Gantt chart, plus waiting time, turnaround time and their averages.
+- Support step-by-step mode (Next/Previous) and auto-play, with input validation.
+- Provide a free, offline learning aid for students in rural and resource-limited institutions (SDG 4).
+- Study which disk algorithm saves the most energy on low-power servers (SDG 7 and SDG 9).
+
+## Conclusion
+This project makes OS scheduling easier to understand by letting students watch each algorithm run step by step instead of reading static diagrams. On the sample input (head 50, queue 82, 170, 43, 140, 24, 16, 190), SSTF moved the head 208 cylinders against 642 for FCFS, but SSTF can starve far requests. LOOK gives the best balance of low head movement, fairness and energy use, which suits low-power and solar-powered servers. For CPU scheduling, SJF gave a lower average waiting time than Round Robin, while Round Robin shared the CPU more fairly. The tool runs in any browser with no install or internet, so it can be used freely in classrooms with limited resources. Future work includes dynamic request arrival, an energy model and more CPU algorithms.
+
 
 
